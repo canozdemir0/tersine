@@ -1,0 +1,692 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tersine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#FFF4EA;--surface:#FFFFFF;--ink:#2A1340;--muted:#76648F;--line:#EADFF0;
+  --p0:#E3405F;--p1:#0B8A7E;--rec:#E3405F;--gold:#B7791F;--on:#FFFFFF;
+  color-scheme:light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#1A0F2E;--surface:#261942;--ink:#FFF1E2;--muted:#B4A3D3;--line:#3A2A5E;
+    --p0:#FF6584;--p1:#35D8C4;--rec:#FF6584;--gold:#FFC94D;--on:#1A0F2E;color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#1A0F2E;--surface:#261942;--ink:#FFF1E2;--muted:#B4A3D3;--line:#3A2A5E;
+  --p0:#FF6584;--p1:#35D8C4;--rec:#FF6584;--gold:#FFC94D;--on:#1A0F2E;color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px);-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Bricolage Grotesque",ui-rounded,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  line-height:1.45;-webkit-tap-highlight-color:transparent}
+button{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
+.app{max-width:520px;margin:0 auto;padding:16px 16px 40px}
+
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:6px 0 18px}
+h1{font-size:2.1rem;font-weight:800;letter-spacing:-.035em;margin:0;line-height:1}
+h1 .flip{display:inline-block;transform:scaleX(-1)}
+.tabs{display:flex;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px}
+.tabs button{border:0;background:none;color:var(--muted);font-weight:600;padding:8px 14px;border-radius:999px;cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--ink);color:var(--bg)}
+
+.err{background:color-mix(in srgb,var(--rec) 14%,transparent);border-radius:16px;padding:12px 14px;margin:0 0 14px;font-size:.93rem}
+
+.board{display:grid;grid-template-columns:1fr auto 1fr;align-items:stretch;gap:8px;margin-bottom:14px}
+.player{background:var(--surface);border:2px solid var(--line);border-radius:20px;padding:10px 12px;transition:border-color .2s}
+.player.active{border-color:var(--c)}
+.player label{display:block;font-size:.72rem;color:var(--muted)}
+.player input{width:100%;border:0;background:none;color:var(--ink);font:inherit;font-weight:600;font-size:1rem;padding:0;border-radius:6px}
+.player .score{font-size:2.3rem;font-weight:800;color:var(--c);line-height:1.05;font-variant-numeric:tabular-nums}
+.player.right{text-align:right}
+.player.right input{text-align:right}
+.mid{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:var(--muted);font-size:.72rem;text-align:center}
+.mid button{border:2px solid var(--line);background:none;border-radius:12px;padding:4px 10px;font-weight:800;font-size:1.05rem;cursor:pointer;color:var(--ink)}
+
+.steps{display:flex;gap:6px;list-style:none;padding:0;margin:0 0 12px}
+.steps li{flex:1;font-size:.72rem;color:var(--muted)}
+.steps li::before{content:"";display:block;height:6px;border-radius:3px;background:var(--line);margin-bottom:5px}
+.steps li.done::before{background:var(--muted)}
+.steps li.now{color:var(--ink);font-weight:600}
+.steps li.now::before{background:var(--pc)}
+
+.stage{background:var(--surface);border:1px solid var(--line);border-radius:28px;padding:20px 18px}
+.who{font-weight:600;color:var(--pc);margin:0 0 2px;min-height:1.45em}
+.instr{font-size:1.5rem;line-height:1.18;font-weight:800;letter-spacing:-.02em;margin:0 0 6px}
+.hint{color:var(--muted);margin:0 0 16px;font-size:.95rem}
+.stage.win .instr{font-size:2.6rem;animation:pop .7s cubic-bezier(.3,1.6,.5,1)}
+@keyframes pop{from{transform:scale(.5);opacity:0}}
+
+.card{border:2px dashed var(--pc);border-radius:20px;padding:14px 16px;margin:0 0 16px;text-align:center;
+  user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:manipulation}
+.card[data-peek]{cursor:pointer}
+.card .diff{display:inline-block;font-size:.75rem;font-weight:600;padding:2px 10px;border-radius:999px;background:var(--line);margin-bottom:6px}
+.card .txt{font-size:1.35rem;font-weight:800;letter-spacing:-.01em;line-height:1.25}
+.card .txt.hidden{color:var(--muted);letter-spacing:.15em}
+.card .peek{font-size:.82rem;color:var(--muted);margin-top:6px}
+.linkbtn{border:0;background:none;color:var(--muted);text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:6px;font-size:.9rem}
+.center{text-align:center}
+
+.wave{position:relative;height:112px;margin:0 0 18px;border-radius:20px;background:color-mix(in srgb,var(--pc) 9%,transparent);overflow:hidden}
+.wave canvas{width:100%;height:100%;display:block;transition:transform .6s cubic-bezier(.65,-0.35,.35,1.35)}
+.wave canvas.flipped{transform:scaleX(-1)}
+.wave .tag{position:absolute;top:8px;left:12px;font-size:.76rem;font-weight:600;color:var(--pc)}
+.wave .time{position:absolute;bottom:8px;right:12px;font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums}
+
+.recbtn{display:flex;flex-direction:column;align-items:center;gap:8px;margin:2px auto 18px;border:0;background:none;font-weight:600;cursor:pointer;padding:6px;border-radius:24px}
+.disc{width:96px;height:96px;border-radius:50%;background:var(--rec);color:#fff;display:grid;place-items:center;
+  box-shadow:0 0 0 calc(var(--lv,0) * 26px) color-mix(in srgb,var(--rec) 22%,transparent);transition:box-shadow .09s linear}
+.disc svg{width:38px;height:38px}
+
+.stack{display:grid;gap:10px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:56px;border-radius:18px;
+  border:2px solid var(--line);background:none;font-weight:600;font-size:1.05rem;cursor:pointer;padding:10px 14px;text-align:center}
+.btn svg{width:20px;height:20px;flex:none}
+.btn.primary{background:var(--pc);border-color:var(--pc);color:var(--on)}
+.btn.playing{border-color:var(--pc);color:var(--pc);background:color-mix(in srgb,var(--pc) 10%,transparent)}
+.btn small{font-weight:400;opacity:.85;font-size:.95rem}
+.err p{margin:0}
+.err .row2{margin-top:10px}
+.err .btn{min-height:48px;font-size:.95rem;background:var(--surface)}
+body.recording .btn:not([data-act^="rec-"]),body.recording .tabs,body.recording .linkbtn{opacity:.35;pointer-events:none}
+
+.big{min-height:118px;border-radius:26px;flex-direction:column;gap:6px;font-size:1.2rem;font-weight:800;border:0}
+.big svg{width:34px;height:34px}
+.big.r{background:var(--rec);color:#fff}
+.big.v{background:var(--p1);color:var(--on)}
+.big.o{background:var(--ink);color:var(--bg)}
+.big.on{outline:4px solid color-mix(in srgb,var(--rec) 35%,transparent);outline-offset:3px}
+.big.playing{background:var(--ink);color:var(--bg);border:0}
+.status{color:var(--muted);text-align:center;margin:14px 0 10px}
+.seg{display:flex;border:2px solid var(--line);border-radius:16px;overflow:hidden}
+.seg button{flex:1;border:0;background:none;padding:10px 0;font-weight:600;cursor:pointer;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--line);color:var(--ink)}
+.seglabel{font-size:.8rem;color:var(--muted);margin:16px 0 6px}
+
+details{margin-top:18px;color:var(--muted);font-size:.93rem}
+details summary{cursor:pointer;font-weight:600;color:var(--ink)}
+details p{margin:8px 0 0}
+.footer{display:flex;justify-content:center;margin-top:6px}
+
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);opacity:0;
+  background:var(--ink);color:var(--bg);padding:12px 18px;border-radius:999px;font-weight:600;transition:.25s;pointer-events:none;max-width:90vw;text-align:center}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+[hidden]{display:none!important}
+@media (prefers-reduced-motion:reduce){
+  .wave canvas{transition:none}
+  *{animation:none!important}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Ters<span class="flip">ine</span></h1>
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-mode="duel" aria-selected="true">Düello</button>
+      <button role="tab" data-mode="free" aria-selected="false">Serbest</button>
+    </nav>
+  </header>
+
+  <div class="err" id="err" role="alert" hidden></div>
+
+  <!-- DÜELLO -->
+  <section id="duel">
+    <div class="board">
+      <div class="player" id="pl0" style="--c:var(--p0)">
+        <label for="n0">1. oyuncu</label>
+        <input id="n0" maxlength="16" autocomplete="off">
+        <div class="score">0</div>
+      </div>
+      <div class="mid">
+        <span>Hedef</span>
+        <button id="target" aria-label="Hedef puanı değiştir">10</button>
+        <span>Tur <b id="roundNo">1</b></span>
+      </div>
+      <div class="player right" id="pl1" style="--c:var(--p1)">
+        <label for="n1">2. oyuncu</label>
+        <input id="n1" maxlength="16" autocomplete="off">
+        <div class="score">0</div>
+      </div>
+    </div>
+
+    <ol class="steps" id="steps">
+      <li>Söyle</li><li>Taklit et</li><li>Tahmin et</li><li>Puanla</li>
+    </ol>
+
+    <div class="stage" id="stage">
+      <p class="who" id="who"></p>
+      <h2 class="instr" id="instr"></h2>
+      <p class="hint" id="hint"></p>
+      <div id="cardSlot"></div>
+      <div class="wave" id="duelWave"><canvas></canvas><span class="tag"></span><span class="time"></span></div>
+      <div id="controls"></div>
+    </div>
+
+    <details>
+      <summary>Nasıl oynanır?</summary>
+      <p>Söyleyen kişi kartı gizlice görür ve cümleyi normal söyler. Uygulama kaydı tersine çevirir. Diğer oyuncu bu ters sesi dinleyip duyduğu gibi taklit eder. Uygulama taklidi tekrar tersine çevirir; ortaya çıkan anlamlı gibi sesi dinleyip cümleyi tahmin eder. Zor kartlar daha çok puan getirir. Her turda roller değişir.</p>
+    </details>
+    <div class="footer"><button class="linkbtn" id="resetGame">Skoru sıfırla</button></div>
+  </section>
+
+  <!-- SERBEST -->
+  <section id="free" hidden style="--pc:var(--p0)">
+    <div class="wave" id="freeWave"><canvas></canvas><span class="tag"></span><span class="time"></span></div>
+    <div class="stack">
+      <button class="btn big r" data-act="rec-free" data-idle="Kaydet"><span class="ic"></span><span class="lbl">Kaydet</span></button>
+      <button class="btn big v" data-act="free-rev"><span class="ic"></span><span>Ters çal</span></button>
+      <button class="btn big o" data-act="free-fwd"><span class="ic"></span><span>Orijinali çal</span></button>
+    </div>
+    <p class="status" id="freeStatus"></p>
+    <div class="seglabel">Çalma hızı</div>
+    <div class="seg" id="speed">
+      <button data-rate="0.75" aria-pressed="false">Yavaş</button>
+      <button data-rate="1" aria-pressed="true">Normal</button>
+      <button data-rate="1.25" aria-pressed="false">Hızlı</button>
+    </div>
+  </section>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(function(){
+"use strict";
+const $=s=>document.querySelector(s);
+const $$=s=>document.querySelectorAll(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const store={
+  get(k,d){try{const v=localStorage.getItem("tersine:"+k);return v?JSON.parse(v):d}catch(e){return d}},
+  set(k,v){try{localStorage.setItem("tersine:"+k,JSON.stringify(v))}catch(e){}}
+};
+const IC={
+  mic:'<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>',
+  stop:'<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2.5"/></svg>',
+  play:'<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>',
+  rev:'<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 5v14L5 12z"/></svg>'
+};
+
+/* ---------- Kartlar ---------- */
+const CARDS=[
+  {d:1,t:"Şemsiye"},{d:1,t:"Karpuz"},{d:1,t:"Patates püresi"},{d:1,t:"Merhaba"},{d:1,t:"Kırmızı balık"},
+  {d:1,t:"Lahmacun"},{d:1,t:"Uzaktan kumanda"},{d:1,t:"Seni seviyorum"},{d:1,t:"Günaydın"},{d:1,t:"Bilgisayar"},
+  {d:1,t:"Buzdolabı"},{d:1,t:"Elma şekeri"},
+  {d:2,t:"Çay demlendi mi"},{d:2,t:"Akşama ne pişirelim"},{d:2,t:"Bulaşıkları sen yıka"},{d:2,t:"Mantı mı makarna mı"},
+  {d:2,t:"Kumanda yine kayboldu"},{d:2,t:"Bugün günlerden pazartesi"},{d:2,t:"Ali topu at"},{d:2,t:"Dut yemiş bülbül"},
+  {d:2,t:"Sabah sabah kahve"},{d:2,t:"Bir çocuk şarkısının ilk satırı (sen seç)"},{d:2,t:"Sevdiğiniz bir şarkının nakaratı (sen seç)"},
+  {d:2,t:"Hafta sonu ne yapıyoruz"},
+  {d:3,t:"Damlaya damlaya göl olur"},{d:3,t:"Ayağını yorganına göre uzat"},{d:3,t:"Sakla samanı gelir zamanı"},
+  {d:3,t:"Üzüm üzüme baka baka kararır"},{d:3,t:"Şu köşe yaz köşesi"},{d:3,t:"Al bu takke ver bu külahı"},
+  {d:3,t:"Köprüyü geçene kadar ayıya dayı de"},{d:3,t:"Çekoslovakyalılaştıramadıklarımızdan"},{d:3,t:"Bir berber bir berbere"}
+];
+const DIFF={1:"Kolay",2:"Orta",3:"Zor"};
+let recent=[];
+function drawCard(){
+  let pool=CARDS.filter(c=>!recent.includes(c));
+  if(!pool.length){recent=[];pool=CARDS}
+  const c=pool[Math.floor(Math.random()*pool.length)];
+  recent.push(c);if(recent.length>14)recent.shift();
+  return c;
+}
+
+/* ---------- Ses motoru ---------- */
+let ctx=null,stream=null,rec=null,playing=null;
+async function getCtx(){
+  if(!ctx){const AC=window.AudioContext||window.webkitAudioContext;ctx=new AC()}
+  if(ctx.state!=="running"){try{await ctx.resume()}catch(e){}}
+  return ctx;
+}
+async function getStream(){
+  if(stream&&stream.getAudioTracks().some(t=>t.readyState==="live"))return stream;
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){const e=new Error("nomedia");e.name="NoMedia";throw e}
+  stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
+  return stream;
+}
+async function startRecording(onLevel){
+  stopPlayback();
+  const c=await getCtx();
+  const s=await getStream();
+  const src=c.createMediaStreamSource(s);
+  const proc=c.createScriptProcessor(4096,1,1);
+  const mute=c.createGain();mute.gain.value=0;
+  const chunks=[];
+  proc.onaudioprocess=e=>{
+    const d=e.inputBuffer.getChannelData(0);
+    chunks.push(new Float32Array(d));
+    let m=0;for(let i=0;i<d.length;i+=8){const a=Math.abs(d[i]);if(a>m)m=a}
+    onLevel&&onLevel(m);
+  };
+  src.connect(proc);proc.connect(mute);mute.connect(c.destination);
+  rec={src,proc,mute,chunks,rate:c.sampleRate};
+}
+function stopRecording(){
+  if(!rec)return null;
+  const r=rec;rec=null;
+  r.proc.onaudioprocess=null;
+  try{r.src.disconnect();r.proc.disconnect();r.mute.disconnect()}catch(e){}
+  const len=r.chunks.reduce((a,b)=>a+b.length,0);
+  if(len<r.rate*0.3)return null;
+  const data=new Float32Array(len);let o=0;
+  for(const ch of r.chunks){data.set(ch,o);o+=ch.length}
+  const clean=tidy(data,r.rate);
+  if(clean.length<r.rate*0.2)return null;
+  const buf=ctx.createBuffer(1,clean.length,r.rate);
+  buf.getChannelData(0).set(clean);
+  return buf;
+}
+/* Baştaki/sondaki sessizliği kırp, sesi dengele, uçları yumuşat */
+function tidy(d,rate){
+  const th=0.015;let s=0,e=d.length-1;
+  while(s<d.length&&Math.abs(d[s])<th)s++;
+  while(e>s&&Math.abs(d[e])<th)e--;
+  if(s>=e)return d;
+  s=Math.max(0,s-Math.floor(rate*0.08));
+  e=Math.min(d.length,e+Math.floor(rate*0.15));
+  const out=d.slice(s,e);
+  let pk=0;for(let i=0;i<out.length;i++){const a=Math.abs(out[i]);if(a>pk)pk=a}
+  const gain=pk>0?Math.min(4,0.9/pk):1;
+  if(gain>1.05)for(let i=0;i<out.length;i++)out[i]*=gain;
+  const f=Math.min(out.length>>1,Math.floor(rate*0.012));
+  for(let i=0;i<f;i++){const k=i/f;out[i]*=k;out[out.length-1-i]*=k}
+  return out;
+}
+const revCache=new WeakMap();
+function rev(b){
+  let r=revCache.get(b);
+  if(!r){
+    r=ctx.createBuffer(1,b.length,b.sampleRate);
+    const s=b.getChannelData(0),d=r.getChannelData(0),n=s.length;
+    for(let i=0;i<n;i++)d[i]=s[n-1-i];
+    revCache.set(b,r);
+  }
+  return r;
+}
+function play(buf,{rate=1,btn=null,onProgress,onEnd}){
+  stopPlayback();
+  const src=ctx.createBufferSource();
+  src.buffer=buf;src.playbackRate.value=rate;src.connect(ctx.destination);
+  const start=ctx.currentTime,dur=buf.duration/rate;
+  const p={src,raf:0,btn,onEnd};playing=p;
+  const loop=()=>{
+    if(playing!==p)return;
+    const t=Math.min(1,(ctx.currentTime-start)/dur);
+    onProgress&&onProgress(t);
+    if(t<1)p.raf=requestAnimationFrame(loop);
+  };
+  src.onended=()=>{if(playing===p){playing=null;cancelAnimationFrame(p.raf);onEnd&&onEnd()}};
+  src.start();loop();
+}
+function stopPlayback(){
+  if(!playing)return;
+  const p=playing;playing=null;cancelAnimationFrame(p.raf);
+  try{p.src.onended=null;p.src.stop()}catch(e){}
+  p.onEnd&&p.onEnd();
+}
+
+/* ---------- Dalga görseli ---------- */
+const cssVar=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const fmt=s=>s.toFixed(1).replace(".",",")+" sn";
+function peaksOf(buf,n){
+  const d=buf.getChannelData(0),len=d.length,step=len/n,out=new Float32Array(n);let mx=0;
+  for(let i=0;i<n;i++){
+    let m=0;const s=Math.floor(i*step),e=Math.min(len,Math.floor((i+1)*step));
+    for(let j=s;j<e;j+=4){const a=Math.abs(d[j]);if(a>m)m=a}
+    out[i]=m;if(m>mx)mx=m;
+  }
+  if(mx>0)for(let i=0;i<n;i++)out[i]=Math.pow(out[i]/mx,.8);
+  return out;
+}
+class Wave{
+  constructor(wrap){
+    this.c=wrap.querySelector("canvas");this.timeEl=wrap.querySelector(".time");this.tagEl=wrap.querySelector(".tag");
+    this.buf=null;this.color="--p0";this.p=-1;this.revDir=false;this.live=null;this.peaks=null;this.pn=0;
+    if(window.ResizeObserver)new ResizeObserver(()=>this.draw()).observe(this.c);
+    window.addEventListener("resize",()=>this.draw());
+  }
+  set(buf,color,o={}){
+    this.buf=buf;if(color)this.color=color;this.peaks=null;this.p=-1;this.live=null;
+    this.c.classList.toggle("flipped",!!o.flip);
+    this.tagEl.textContent=o.tag||"";
+    this.timeEl.textContent=buf?fmt(buf.duration):"";
+    this.draw();
+  }
+  startLive(color){this.color=color;this.live=[];this.buf=null;this.p=-1;this.c.classList.remove("flipped");this.tagEl.textContent="Kaydediliyor";this.timeEl.textContent=fmt(0);this.draw()}
+  pushLevel(l){if(!this.live)return;this.live.push(l);if(this.live.length>500)this.live.shift();this.draw()}
+  setTime(s){this.timeEl.textContent=fmt(s)}
+  progress(p,revDir){this.p=p;this.revDir=revDir;this.draw()}
+  draw(){
+    const c=this.c,dpr=window.devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;
+    if(!w||!h)return;
+    const W=Math.round(w*dpr),H=Math.round(h*dpr);
+    if(c.width!==W||c.height!==H){c.width=W;c.height=H}
+    const g=c.getContext("2d");g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,w,h);
+    const col=cssVar(this.color)||"#888";
+    const bw=3,gap=2,n=Math.max(1,Math.floor((w-16)/(bw+gap))),x0=(w-(n*(bw+gap)-gap))/2;
+    let amps;
+    if(this.live){
+      const L=this.live;amps=new Array(n);
+      for(let i=0;i<n;i++){const j=L.length-n+i;amps[i]=j>=0?Math.min(1,L[j]*2.4):0}
+    }else if(this.buf){
+      if(!this.peaks||this.pn!==n){this.peaks=peaksOf(this.buf,n);this.pn=n}
+      amps=this.peaks;
+    }else{
+      g.fillStyle=cssVar("--line")||"#ccc";
+      for(let i=0;i<n;i++)g.fillRect(x0+i*(bw+gap),h/2-1.5,bw,3);
+      return;
+    }
+    g.fillStyle=col;
+    for(let i=0;i<n;i++){
+      const x=x0+i*(bw+gap),bh=Math.max(3,amps[i]*(h-24));
+      let a=this.live?1:.9;
+      if(this.p>=0){const f=(x+bw/2)/w;const on=this.revDir?f>=1-this.p:f<=this.p;a=on?1:.28}
+      g.globalAlpha=a;
+      const y=(h-bh)/2;
+      if(g.roundRect){g.beginPath();g.roundRect(x,y,bw,bh,1.5);g.fill()}else g.fillRect(x,y,bw,bh);
+    }
+    g.globalAlpha=1;
+  }
+}
+const duelWave=new Wave($("#duelWave"));
+const freeWave=new Wave($("#freeWave"));
+
+/* ---------- Kayıt kontrolü ---------- */
+const MAX=20;
+let recCtl=null,recTimer=0,lvS=0;
+function micMsg(e){
+  const n=e&&e.name;
+  if(n==="NoMedia")return "Bu ekranda mikrofona erişilemiyor. Sayfayı Chrome veya Safari’de aç.";
+  if(n==="NotAllowedError"||n==="SecurityError")return "Mikrofon izni alınamadı. İzin penceresi çıkarsa İzin ver de. Claude uygulaması içindeysen sayfayı Chrome veya Safari’de aç.";
+  if(n==="NotFoundError")return "Mikrofon bulunamadı. Bağlı bir mikrofon ya da kulaklık olup olmadığını kontrol et.";
+  if(n==="NotReadableError")return "Mikrofonu başka bir uygulama kullanıyor. O uygulamayı kapatıp tekrar dene.";
+  return "Kayıt başlatılamadı: "+((e&&e.message)||"bilinmeyen hata");
+}
+function showErr(m,fallback){
+  const el=$("#err");
+  el.innerHTML=`<p>${esc(m)}</p>`+(fallback?`<div class="row2" style="grid-template-columns:1fr">${btn("retry-mic","Mikrofonu tekrar dene",IC.mic)}</div>`:"");
+  el.hidden=false;
+}
+
+function hideErr(){$("#err").hidden=true}
+const micAllowed=(()=>{try{const p=document.permissionsPolicy||document.featurePolicy;return p&&p.allowsFeature?p.allowsFeature("microphone"):true}catch(e){return true}})();
+const EMBED_MSG="Bu sayfa Claude içinde açıldığı için mikrofon kapalı, kayıt burada yapılamıyor. Uygulamayı kendi adresinde (örneğin GitHub Pages) açtığında tüm butonlar çalışır.";
+function setRecUI(on){
+  document.body.classList.toggle("recording",on);
+  $$('[data-act^="rec-"]').forEach(b=>{
+    b.classList.toggle("on",on);
+    const ic=b.querySelector(".ic"),lb=b.querySelector(".lbl");
+    if(ic)ic.innerHTML=on?IC.stop:IC.mic;
+    if(lb)lb.textContent=on?"Durdur":b.dataset.idle;
+    b.setAttribute("aria-label",on?"Kaydı durdur":b.dataset.idle);
+    b.style.setProperty("--lv",0);
+  });
+}
+async function toggleRec(wave,color,onDone){
+  if(rec){finishRec();return}
+  if(!micAllowed){showErr(EMBED_MSG);return}
+  hideErr();
+  try{
+    await startRecording(lv=>{
+      wave.pushLevel(lv);
+      lvS=lvS*.55+Math.min(1,lv*2)*.45;
+      $$('[data-act^="rec-"].on').forEach(b=>b.style.setProperty("--lv",lvS.toFixed(3)));
+    });
+  }catch(e){
+    const n=e&&e.name;
+    if(stream){try{stream.getTracks().forEach(t=>t.stop())}catch(_){}stream=null}
+    showErr(micMsg(e),n==="NotAllowedError"||n==="SecurityError"||n==="NotReadableError");
+    return;
+  }
+  recCtl={wave,onDone};
+  const t0=performance.now();
+  wave.startLive(color);setRecUI(true);
+  recTimer=setInterval(()=>{const s=(performance.now()-t0)/1000;wave.setTime(s);if(s>=MAX)finishRec()},100);
+}
+function finishRec(){
+  clearInterval(recTimer);
+  const t=recCtl;recCtl=null;
+  const buf=stopRecording();
+  setRecUI(false);
+  if(!t)return;
+  t.wave.live=null;t.wave.tagEl.textContent="";
+  if(!buf){toast("Kayıt çok kısa ya da sessiz oldu, bir daha dene");t.wave.set(null);return}
+  t.onDone(buf);
+}
+function playClip(btn,wave,fwd,reversed,color,tag,rate){
+  if(rec||!fwd)return;
+  if(playing&&playing.btn===btn){stopPlayback();return}
+  getCtx().then(()=>{
+    wave.set(fwd,color,{flip:reversed,tag});
+    btn.classList.add("playing");
+    play(reversed?rev(fwd):fwd,{
+      rate:rate||1,btn,
+      onProgress:p=>wave.progress(p,reversed),
+      onEnd:()=>{btn.classList.remove("playing");wave.progress(-1,reversed)}
+    });
+  });
+}
+
+/* ---------- Düello durumu ---------- */
+let S=Object.assign({names:["Oyuncu 1","Oyuncu 2"],scores:[0,0],target:10,singer:0,round:1},store.get("state",{}));
+const save=()=>store.set("state",S);
+const newRound=()=>({step:"sing",card:null,own:false,orig:null,imit:null});
+let R=newRound();
+const nm=i=>S.names[i]||("Oyuncu "+(i+1));
+const guesser=()=>1-S.singer;
+const actor=()=>R.step==="mimic"||R.step==="guess"?guesser():(R.step==="win"?R.winner:S.singer);
+const worth=()=>R.own?2:R.card.d;
+
+function btn(act,label,icon,primary){
+  return `<button class="btn${primary?" primary":""}" data-act="${act}">${icon||""}<span>${label}</span></button>`;
+}
+function recBlock(target,label){
+  return `<button class="recbtn" data-act="rec-${target}" data-idle="${esc(label)}" aria-label="${esc(label)}"><span class="disc"><span class="ic">${IC.mic}</span></span><span class="lbl">${esc(label)}</span></button>`;
+}
+function cardHTML(reveal,peekable){
+  if(R.own)return `<div class="card"><div class="txt">Kendi seçtiği cümle</div></div>`;
+  const c=R.card;
+  return `<div class="card"${peekable?" data-peek":""}><span class="diff">${DIFF[c.d]}, ${c.d} puan</span>`+
+    `<div class="txt${reveal?"":" hidden"}">${reveal?esc(c.t):"• • • • •"}</div>`+
+    (peekable?`<div class="peek">Görmek için basılı tut</div>`:"")+`</div>`;
+}
+
+function renderDuel(){
+  const a=actor(),g=guesser(),s=S.singer;
+  $("#duel").style.setProperty("--pc",`var(--p${a})`);
+  [0,1].forEach(i=>{
+    const el=$("#pl"+i);
+    el.classList.toggle("active",i===a);
+    el.querySelector(".score").textContent=S.scores[i];
+    const inp=el.querySelector("input");
+    if(document.activeElement!==inp)inp.value=S.names[i];
+  });
+  $("#target").textContent=S.target;
+  $("#roundNo").textContent=S.round;
+  const order=["sing","mimic","guess","score"],k=order.indexOf(R.step);
+  $$("#steps li").forEach((li,i)=>{li.className=k<0?"done":i<k?"done":i===k?"now":""});
+
+  let who="",instr="",hint="",card="",ctl="",showWave=true;
+  const stage=$("#stage");stage.classList.toggle("win",R.step==="win");
+
+  if(R.step==="sing"){
+    who=`${nm(s)} söylüyor`;
+    if(!R.card&&!R.own){
+      instr="Kart çek ya da kendi cümleni seç";
+      hint=`${nm(g)} ekrana bakmasın.`;
+      ctl=`<div class="stack">${btn("draw","Kart çek","",true)}${btn("own","Kendi cümlemi söyleyeceğim")}</div>`;
+      showWave=false;
+    }else{
+      card=cardHTML(false,!R.own)+(!R.orig&&!R.own?`<div class="center" style="margin:-8px 0 10px"><button class="linkbtn" data-act="draw">Başka kart çek</button></div>`:"");
+      instr=R.orig?"Kaydın hazır":"Şimdi normal şekilde söyle";
+      hint=R.orig?`Tersini kendin de dinleyebilirsin. Hazırsan sırayı ${nm(g)} oyuncusuna ver.`:`Kaydet’e bas, söyle, durdur. En fazla ${MAX} saniye.`;
+      ctl=recBlock("orig",R.orig?"Yeniden kaydet":"Kaydet")+
+        (R.orig?`<div class="stack"><div class="row2">${btn("p-orig","Normal",IC.play)}${btn("p-orig-r","Tersten",IC.rev)}</div>${btn("to-mimic",`Sırayı ver: ${esc(nm(g))}`,"",true)}</div>`:"");
+    }
+  }else if(R.step==="mimic"){
+    who=`${nm(g)} taklit ediyor`;
+    instr="Ters kaydı dinle, duyduğun gibi taklit et";
+    hint="Kulağına ne kadar saçma gelirse gelsin aynen öyle söyle. İstediğin kadar dinleyebilirsin.";
+    ctl=`<div class="stack" style="margin-bottom:18px">${btn("p-orig-r","Ters kaydı dinle",IC.rev)}</div>`+
+      recBlock("imit",R.imit?"Yeniden taklit et":"Taklidi kaydet")+
+      (R.imit?`<div class="stack">${btn("p-imit","Taklidimi dinle",IC.play)}${btn("to-guess","Tersine çevir ve dinle","",true)}</div>`:"");
+  }else if(R.step==="guess"){
+    who=`${nm(g)} tahmin ediyor`;
+    instr="Taklidin tersine çevrildi";
+    hint="Dinle ve cümleyi yüksek sesle tahmin et. Sonra cevabı aç.";
+    ctl=`<div class="stack">${btn("p-imit-r","Çözülmüş hali dinle",IC.rev)}<div class="row2">${btn("p-orig-r","Ters kayıt",IC.rev)}${btn("back-mimic","Yeniden taklit")}</div>${btn("reveal","Cevabı aç","",true)}</div>`;
+  }else if(R.step==="score"){
+    const d=worth(),h=Math.ceil(d/2);
+    who=`${nm(s)} puan veriyor`;
+    instr=`${nm(g)} ne kadar bildi?`;
+    hint="İki sesi karşılaştırıp puanı ver.";
+    card=cardHTML(true,false);
+    ctl=`<div class="stack"><div class="row2">${btn("p-orig","Orijinal",IC.play)}${btn("p-imit-r","Çözülmüş taklit",IC.rev)}</div>`+
+      btn("pts-full",`Tam bildi <small>+${d}</small>`,"",true)+
+      btn("pts-half",`Yarısını bildi <small>+${h}</small>`)+
+      btn("pts-none",`Bilemedi <small>+0</small>`)+`</div>`;
+  }else if(R.step==="win"){
+    who="Oyun bitti";
+    instr=`${nm(R.winner)} kazandı!`;
+    hint=`${nm(0)}: ${S.scores[0]} puan, ${nm(1)}: ${S.scores[1]} puan, ${S.round} tur.`;
+    ctl=`<div class="stack">${btn("new-game","Yeni oyun","",true)}</div>`;
+    showWave=false;
+  }
+  $("#who").textContent=who;$("#instr").textContent=instr;$("#hint").textContent=hint;
+  $("#cardSlot").innerHTML=card;$("#controls").innerHTML=ctl;
+  $("#duelWave").hidden=!showWave;
+  if(showWave)requestAnimationFrame(()=>duelWave.draw());
+}
+function go(step){
+  stopPlayback();R.step=step;
+  const g="--p"+guesser(),s="--p"+S.singer;
+  if(step==="sing")duelWave.set(R.orig,s,{tag:R.orig?"Senin kaydın":""});
+  if(step==="mimic")R.imit?duelWave.set(R.imit,g,{tag:"Taklidin"}):duelWave.set(R.orig,g,{flip:true,tag:"Ters kayıt"});
+  if(step==="guess")duelWave.set(R.imit,g,{flip:true,tag:"Çözülmüş taklit"});
+  if(step==="score")duelWave.set(R.orig,s,{tag:"Orijinal"});
+  renderDuel();
+}
+function award(kind){
+  const g=guesser(),d=worth();
+  const p=kind==="full"?d:kind==="half"?Math.ceil(d/2):0;
+  S.scores[g]+=p;
+  toast(p?`${nm(g)} +${p} puan`:"Bu tur puan yok");
+  if(S.scores[g]>=S.target){R=newRound();R.step="win";R.winner=g}
+  else{S.singer=g;S.round++;R=newRound();duelWave.set(null,"--p"+g)}
+  save();renderDuel();
+}
+function autoPlay(act){
+  const b=document.querySelector(`#controls [data-act="${act}"]`);
+  if(b)b.click();
+}
+
+/* ---------- Serbest mod ---------- */
+const F={buf:null,rate:1};
+function renderFree(){
+  $("#freeStatus").textContent=F.buf?"Hazır. Tersini ya da orijinalini çalabilirsin.":"Kaydet’e bas ve bir şey söyle.";
+}
+$('#free [data-act="rec-free"] .ic').innerHTML=IC.mic;
+$('#free [data-act="free-rev"] .ic').innerHTML=IC.rev;
+$('#free [data-act="free-fwd"] .ic').innerHTML=IC.play;
+
+/* ---------- Olaylar ---------- */
+document.addEventListener("click",e=>{
+  const b=e.target.closest("[data-act]");if(!b)return;
+  const act=b.dataset.act,g=guesser(),s=S.singer;
+  switch(act){
+    case "retry-mic":hideErr();toast("Şimdi kayıt butonuna tekrar bas");break;
+    case "draw":R.card=drawCard();R.own=false;renderDuel();break;
+    case "own":R.own=true;R.card=null;renderDuel();break;
+    case "rec-orig":toggleRec(duelWave,"--p"+s,buf=>{R.orig=buf;duelWave.set(buf,"--p"+s,{tag:"Senin kaydın"});renderDuel()});break;
+    case "rec-imit":toggleRec(duelWave,"--p"+g,buf=>{R.imit=buf;duelWave.set(buf,"--p"+g,{tag:"Taklidin"});renderDuel()});break;
+    case "p-orig":playClip(b,duelWave,R.orig,false,"--p"+s,"Orijinal");break;
+    case "p-orig-r":playClip(b,duelWave,R.orig,true,"--p"+actor(),"Ters kayıt");break;
+    case "p-imit":playClip(b,duelWave,R.imit,false,"--p"+g,"Taklidin");break;
+    case "p-imit-r":playClip(b,duelWave,R.imit,true,"--p"+g,"Çözülmüş taklit");break;
+    case "to-mimic":go("mimic");break;
+    case "to-guess":go("guess");autoPlay("p-imit-r");break;
+    case "back-mimic":go("mimic");break;
+    case "reveal":go("score");autoPlay("p-orig");break;
+    case "pts-full":award("full");break;
+    case "pts-half":award("half");break;
+    case "pts-none":award("none");break;
+    case "new-game":S.scores=[0,0];S.round=1;S.singer=0;R=newRound();save();duelWave.set(null,"--p0");renderDuel();break;
+    case "rec-free":toggleRec(freeWave,"--p0",buf=>{F.buf=buf;freeWave.set(buf,"--p0",{tag:"Kayıt"});renderFree()});break;
+    case "free-rev":if(!F.buf){toast("Önce bir şey kaydet");break}playClip(b,freeWave,F.buf,true,"--p1","Tersten",F.rate);break;
+    case "free-fwd":if(!F.buf){toast("Önce bir şey kaydet");break}playClip(b,freeWave,F.buf,false,"--p0","Orijinal",F.rate);break;
+  }
+});
+/* Kartı basılı tutunca göster */
+function peek(on,card){
+  const t=card.querySelector(".txt");if(!t||!R.card)return;
+  t.textContent=on?R.card.t:"• • • • •";t.classList.toggle("hidden",!on);
+}
+document.addEventListener("pointerdown",e=>{const c=e.target.closest("[data-peek]");if(c){peek(true,c);c.setPointerCapture&&c.setPointerCapture(e.pointerId)}});
+["pointerup","pointercancel"].forEach(ev=>document.addEventListener(ev,()=>{$$("[data-peek]").forEach(c=>peek(false,c))}));
+document.addEventListener("contextmenu",e=>{if(e.target.closest("[data-peek]"))e.preventDefault()});
+
+/* Sekmeler */
+$$(".tabs button").forEach(t=>t.addEventListener("click",()=>{
+  if(rec)return;stopPlayback();
+  const m=t.dataset.mode;
+  $$(".tabs button").forEach(x=>x.setAttribute("aria-selected",String(x===t)));
+  $("#duel").hidden=m!=="duel";$("#free").hidden=m!=="free";
+  store.set("mode",m);
+  requestAnimationFrame(()=>{duelWave.draw();freeWave.draw()});
+}));
+/* İsimler, hedef, sıfırlama */
+[0,1].forEach(i=>{
+  const inp=$("#n"+i);
+  inp.addEventListener("input",()=>{S.names[i]=inp.value.trim()||("Oyuncu "+(i+1));save()});
+  inp.addEventListener("change",renderDuel);
+  inp.addEventListener("keydown",e=>{if(e.key==="Enter")inp.blur()});
+});
+$("#target").addEventListener("click",()=>{
+  const opts=[5,10,15,20];S.target=opts[(opts.indexOf(S.target)+1)%opts.length];save();
+  if(R.step!=="win"){const w=[0,1].find(i=>S.scores[i]>=S.target);if(w!==undefined&&R.step==="sing"&&!R.orig){R.step="win";R.winner=w}}
+  renderDuel();
+});
+let resetArm=0;
+$("#resetGame").addEventListener("click",e=>{
+  const b=e.currentTarget;
+  if(!resetArm){b.textContent="Emin misin? Tekrar dokun";resetArm=setTimeout(()=>{resetArm=0;b.textContent="Skoru sıfırla"},3000);return}
+  clearTimeout(resetArm);resetArm=0;b.textContent="Skoru sıfırla";
+  stopPlayback();S.scores=[0,0];S.round=1;S.singer=0;R=newRound();save();duelWave.set(null,"--p0");renderDuel();toast("Skor sıfırlandı");
+});
+$$("#speed button").forEach(b=>b.addEventListener("click",()=>{
+  F.rate=parseFloat(b.dataset.rate);
+  $$("#speed button").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));
+}));
+/* Arka plana geçince mikrofonu bırak */
+document.addEventListener("visibilitychange",()=>{
+  if(document.hidden){
+    if(rec)finishRec();
+    stopPlayback();
+    if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
+  }
+});
+window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change",()=>{duelWave.draw();freeWave.draw()});
+
+let toastT=0;
+function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("show"),2200)}
+
+/* Başlat */
+if(store.get("mode","duel")==="free")$('.tabs button[data-mode="free"]').click();
+duelWave.set(null,"--p0");freeWave.set(null,"--p0");
+renderDuel();renderFree();
+if(!micAllowed)showErr(EMBED_MSG);
+})();
+</script>
+</body>
+</html>
