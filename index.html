@@ -252,7 +252,7 @@ async function getCtx(){
 async function getStream(){
   if(stream&&stream.getAudioTracks().some(t=>t.readyState==="live"))return stream;
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){const e=new Error("nomedia");e.name="NoMedia";throw e}
-  stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
+  stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
   return stream;
 }
 async function startRecording(onLevel){
@@ -277,6 +277,9 @@ function stopRecording(){
   const r=rec;rec=null;
   r.proc.onaudioprocess=null;
   try{r.src.disconnect();r.proc.disconnect();r.mute.disconnect()}catch(e){}
+  /* Mikrofonu hemen bırak: telefon "arama modundan" çıkıp hoparlöre dönsün */
+  if(stream){try{stream.getTracks().forEach(t=>t.stop())}catch(e){}stream=null}
+  try{const s=ctx.suspend();if(s&&s.catch)s.catch(()=>{})}catch(e){}
   const len=r.chunks.reduce((a,b)=>a+b.length,0);
   if(len<r.rate*0.3)return null;
   const data=new Float32Array(len);let o=0;
@@ -314,25 +317,46 @@ function rev(b){
   }
   return r;
 }
+/* Çalma: normal medya sesi olarak (hoparlörden), WAV üzerinden */
+const urlCache=new WeakMap();
+function toWav(buf){
+  const d=buf.getChannelData(0),n=d.length,sr=buf.sampleRate;
+  const ab=new ArrayBuffer(44+n*2),v=new DataView(ab);
+  const w=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i))};
+  w(0,"RIFF");v.setUint32(4,36+n*2,true);w(8,"WAVE");w(12,"fmt ");
+  v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);
+  v.setUint32(24,sr,true);v.setUint32(28,sr*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);
+  w(36,"data");v.setUint32(40,n*2,true);
+  for(let i=0,o=44;i<n;i++,o+=2){const s=Math.max(-1,Math.min(1,d[i]));v.setInt16(o,s<0?s*0x8000:s*0x7fff,true)}
+  return new Blob([ab],{type:"audio/wav"});
+}
+function wavURL(buf){let u=urlCache.get(buf);if(!u){u=URL.createObjectURL(toWav(buf));urlCache.set(buf,u)}return u}
+const player=new Audio();player.preload="auto";
 function play(buf,{rate=1,btn=null,onProgress,onEnd}){
   stopPlayback();
-  const src=ctx.createBufferSource();
-  src.buffer=buf;src.playbackRate.value=rate;src.connect(ctx.destination);
-  const start=ctx.currentTime,dur=buf.duration/rate;
-  const p={src,raf:0,btn,onEnd};playing=p;
+  const a=player;
+  a.defaultPlaybackRate=rate;
+  a.src=wavURL(buf);
+  a.playbackRate=rate;
+  try{a.preservesPitch=false;a.mozPreservesPitch=false;a.webkitPreservesPitch=false}catch(e){}
+  a.volume=1;
+  const p={a,raf:0,btn,onEnd};playing=p;
+  const dur=buf.duration;
+  const done=()=>{if(playing===p){playing=null;cancelAnimationFrame(p.raf);onEnd&&onEnd()}};
   const loop=()=>{
     if(playing!==p)return;
-    const t=Math.min(1,(ctx.currentTime-start)/dur);
-    onProgress&&onProgress(t);
-    if(t<1)p.raf=requestAnimationFrame(loop);
+    onProgress&&onProgress(Math.min(1,a.currentTime/dur));
+    p.raf=requestAnimationFrame(loop);
   };
-  src.onended=()=>{if(playing===p){playing=null;cancelAnimationFrame(p.raf);onEnd&&onEnd()}};
-  src.start();loop();
+  a.onended=done;
+  const pr=a.play();
+  if(pr&&pr.catch)pr.catch(()=>{if(playing===p){done();toast("Ses çalınamadı, tekrar bas")}});
+  loop();
 }
 function stopPlayback(){
   if(!playing)return;
   const p=playing;playing=null;cancelAnimationFrame(p.raf);
-  try{p.src.onended=null;p.src.stop()}catch(e){}
+  try{p.a.onended=null;p.a.pause()}catch(e){}
   p.onEnd&&p.onEnd();
 }
 
@@ -467,14 +491,12 @@ function finishRec(){
 function playClip(btn,wave,fwd,reversed,color,tag,rate){
   if(rec||!fwd)return;
   if(playing&&playing.btn===btn){stopPlayback();return}
-  getCtx().then(()=>{
-    wave.set(fwd,color,{flip:reversed,tag});
-    btn.classList.add("playing");
-    play(reversed?rev(fwd):fwd,{
-      rate:rate||1,btn,
-      onProgress:p=>wave.progress(p,reversed),
-      onEnd:()=>{btn.classList.remove("playing");wave.progress(-1,reversed)}
-    });
+  wave.set(fwd,color,{flip:reversed,tag});
+  btn.classList.add("playing");
+  play(reversed?rev(fwd):fwd,{
+    rate:rate||1,btn,
+    onProgress:p=>wave.progress(p,reversed),
+    onEnd:()=>{btn.classList.remove("playing");wave.progress(-1,reversed)}
   });
 }
 
